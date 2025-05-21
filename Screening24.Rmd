@@ -1,0 +1,279 @@
+---
+title: "Screening24"
+output: pdf_document
+date: "2025-05-08"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+*Functions* 
+The following function will replace all "<LOD"
+- har det no Ã¥ si om det er mellomrm mellom < og tallet? nei, tror ikke det
+```{r}
+#function to recognize "<LOD" and to replace with 0.5*LOD. The next step is to use this only for combinations of sample type and site with LOD >30
+dLimity <- function(v){
+  v <- as.character(v)
+  isLimit <- grepl("<", v)  #grepl() is a built-in R function looks for a smaller string of characters
+  v[isLimit] <- as.numeric(gsub("<(.*)", "\\1", v[isLimit]))/2 #gsub(pattern, replacement, x) for substitution
+  as.numeric(v)
+}
+
+#Test to set desired number of digits
+sigfig <- function(vec, digits){
+  return(gsub("\\.$", "", formatC(signif(vec,digits=digits), digits=digits, format="fg", flag="#")))
+}
+```
+
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+#install.packages(c("dplyr", "ggplot2", "plyr", "Rmisc", "tidyverse", "lubridate", "stringr"))
+Packages <- c("plyr", "dplyr", "ggplot2",  "tidyr", "egg", "reshape2", "forcats", "RColorBrewer")
+lapply(Packages, library, character.only = TRUE)
+#trengs disse? "Rmisc", "tidyverse", "lubridate", "stringr",
+```
+
+#Load file
+```{r echo = T, results = 'hide'}
+Sys.setlocale(locale="no_NO")
+df24 <- read.table("Scr24_Data_05_V03.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
+```
+
+#Make summary table count - number of samples per sample type and compound
+```{r}
+count <- df24 %>% count(KOMPONENT, Sample.type)
+head(df24)
+
+#add grouping
+df24x = df24%>%
+  mutate(Level = case_when(KOMPONENT %in% c("Cadmium", "Lead", "Arsenic", "Nickel", "Cobalt", "Iron", "Manganese", "Chromium", "Vanadium", "Potassium", "Aluminium", "Magnesium", "Silver") ~ "Other metals",
+                           KOMPONENT %in% c("Diflubenzuron", "Teflubenzuron", "Emamectin") ~ "Lice remediation",
+                                KOMPONENT %in% c("TFA", "CFPCN", "ACBE", "CHPAPE", "ACCA", "CDHFPCN", "CHFPCN", "CCEFPE", "CCPCA", "BCCPCA") ~ "Degradation products - Tralopyril",
+                           KOMPONENT %in% c("Tralopyril", "Copper pyrithione", "Zinc pyrithione", "Copper", "Zinc") ~ "Antifouling agents"))
+
+
+
+df24x <- subset(df24x, KOMPONENT != "Grunnpris")
+```
+
+
+```{r Detection frequency}
+#remove n.a due to limited sample material. SHould not be included in calculations
+#df24y <- subset(df24x, RESULTAT != "n.a.")
+
+df24y_freq = df24x %>%
+  group_by(KOMPONENT, Sample.type) %>%
+  mutate(lodcount = sum(lengths(regmatches(RESULTAT, gregexpr("<", RESULTAT)))), 
+            n = (length(RESULTAT)),
+            det_frac = (100-(lodcount/n)*100))%>%
+  ungroup() 
+
+```
+
+
+```{r Avoid plotting average of those with only < LOD}
+
+df24z_freq <- df24y_freq %>% 
+  mutate(plotting = ifelse(det_frac == 0, 
+                           "<LOD", 
+                           RESULTAT))
+
+# claculate 0.5xLOD 
+df24z_filt_X <- cbind(df24z_freq[,c(1:27)], apply(df24z_freq[,28, drop=F],2, dLimity))
+
+```
+
+Calculate mean
+- sjekk at ble riktig! ta ut excel f eks
+```{r}
+df24z_finalx = df24z_filt_X  %>%
+  group_by(KOMPONENT, Sample.type) %>%
+  mutate(meanx = mean(plotting, na.rm = TRUE))%>% 
+  ungroup()
+
+```
+
+##geom_text(aes(label=ifelse(is.na(meanx), "", sigfig(meanx, 2))), color = "white", size = 5)+
+#geom_text(aes(label=ifelse(is.na(meanx), "", round(meanx, digits=3))), color = "white", size = 5)
+
+Set order of substances in plot
+```{r}
+df24z_finalx$KOMPONENT <- as.character(df24z_finalx$KOMPONENT)
+df24z_finalx$Level <- as.character(df24z_finalx$Level)
+
+
+```
+
+##Part 1
+```{r}
+#to get "s" for suspect and "n.a." for not available
+df24z_finalxy <- df24z_finalx %>% 
+  mutate(meanxyz = ifelse(KOMPONENT == "HCPPE" |
+                            KOMPONENT == "ACCA" | 
+                            KOMPONENT =="CCEFPE"
+                          | KOMPONENT =="CDHFPCN"|
+                            KOMPONENT == "CFPCN"|
+                            KOMPONENT == "CHFPCN"|
+                            KOMPONENT =="CHPAPE",
+                           "S", 
+                           " "))
+
+
+#Rename names e.g. starting with a number
+#unique(part1_finalxy$compound)
+
+#part1_finalxyx <- subset(part1_finalxy, compound!="DTBPPO")
+#part1_finalxy$compound <- revalue(part1_finalxyx$compound, c("BENAZOL.P"="BENAZOL P", #"X23BPDT"="23BPDT", "X34DMPZ"="34DMPZ", "X2BBTMP"="2BBTMP", "X34DMPZP"="34DMPZP", #"X35DMPZ"="35DMPZ", "X2BDOMP"="2BDOMP", "X4NAS"="4NAS", "B.2ETF"="B-2ETF", "X2BHMPTP"="2BHMPTP", #"X2BMPP"="2BMPP", "X2BMTP"="2BMTP", "X22BPDT"="22BPDT", "X2TBCLBEP"="2TBCLBEP", "B.2ETF"="B-2ETF", #"X2BDMP"="2BDMP", "DTBPPO.1"="DTBPPO" )) #er den siste riktig?
+
+#unique(part1_finalxy$compound)
+#part1_finalxyz <- subset(part1_finalxy, compound!="Fett")
+
+#length(unique(part1_finalxy$compound))
+```
+
+### All together
+```{r }
+#subset
+#wwt <- subset(part1_finalxyz, Category == "Wastewater treatment")
+
+#better names for sample types
+#unique(wwt$Sample.type)
+
+#wwt$Sample.type <- revalue(wwt$Sample.type, c("Water, filtered" = "Water, filtered (ng/L)", "Water, particulate" = "Water, particulate (ng/g, d.w.)", "Sludge" ="Sludge (ng/g, d.w.)", "Sediment" ="Marine sediment (ng/g, d.w.)", "Blue mussel" ="Blue mussel (ng/g, w.w.)"))
+
+#set order of dample types
+#set order of dample kcompounds
+df24z_finalxy <- df24z_finalxy %>% 
+  mutate(Sample.type = factor(Sample.type, levels = c("Seawater", "Sediment", "Benthic animals", "Fish gills", "Fish liver")))
+
+#set order of dample kcompounds
+df24z_finalxy <- df24z_finalxy %>% 
+  mutate(KOMPONENT = factor(KOMPONENT, levels = c("Copper pyrithione", "Copper", "Zinc pyrithione", "Zinc", "Tralopyril",
+    "ACBE", "ACCA", "BCCPCA", "CCEFPE", "CCPCA", "CDHFPCN", "CFPCN", "CHFPCN", "CHPAPE", "TFA", 
+    "Emamectin", "Diflubenzuron", "Teflubenzuron",
+    "Aluminium", "Arsenic", "Cadmium", "Chromium", "Cobalt", "Iron", "Lead", "Magnesium", "Manganese", "Nickel", "Potassium", "Silver", "Vanadium")))
+
+
+```
+
+ 
+```{r }
+#Fjern alle < LOD
+#wwt3 <- subset(wwt2, meanx != "NaN") 
+df24z_finalxyz <- subset(df24z_finalxy, det_frac != 0) 
+df24z_finalx
+
+ggplot(df24z_finalxy, aes(x=Sample.type, y=fct_rev(KOMPONENT), fill=det_frac)) +
+  geom_tile(aes(fill = det_frac), colour="black")+  # background colours are mapped according to the value column
+  #geom_text(aes(label=ifelse(is.na(meanx), "", sigfig(meanx, 1))), color = "white", size = 5)
+  geom_text(aes(label= ifelse(meanxyz=="S", meanxyz, ifelse(is.na(meanx), " ", as.numeric(sigfig(meanx, 1))))), color = "white", size = 5)+
+ scale_fill_gradient2(low = "#74C476", 
+                       mid = "orange", 
+                       high = "red",
+                       midpoint = 50,
+                       breaks=c(0,50,100), limits=c(0.5,100), na.value = "lightgrey")+  # determine the colour
+   theme(panel.grid.major.x=element_blank(), #no gridlines
+        panel.grid.minor.x=element_blank(), 
+        panel.grid.major.y=element_blank(), 
+        panel.grid.minor.y=element_blank(),
+        panel.background=element_rect(fill="white"), # background=white
+        axis.text.x = element_text(angle=45, hjust = 1,vjust=1,size = 15,colour="black"),
+        plot.title = element_text(size=18,colour="black", vjust = 1, face="bold"),
+        axis.text.y = element_text(size = 12, colour="black"),
+        legend.text=element_text(size=13),
+        axis.line.x = element_line(color="black", linewidth = 1),
+        axis.line.y = element_line(color="black", linewidth = 1),
+        axis.ticks = element_line(color="black", linewidth=1),
+        legend.position =c(0.85, 0.96),
+        legend.direction = "horizontal",
+        plot.margin = margin(1.3, 0.2, 0.15, 0.15, "cm"), #top, right, bottom, left
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(10,10,140,10),
+        strip.text.x = element_text(size = 15),
+        panel.spacing.x = unit(0.2, "lines"),
+        legend.title=element_text(size=12), 
+        strip.text.y = element_text(angle = 0, size=12)) +
+  ggtitle("") + 
+  scale_x_discrete(name="") +
+  scale_y_discrete(name="") +
+  labs(fill="Detection frequency (%)")+
+  facet_grid(Level~., scales="free", space="free_y", labeller = label_wrap_gen(width=2))
+
+
+ggsave("WW_t2.png", wwt_long2, width = 10, height = 12)
+
+```
+
+##Antifouling agents
+- distance from site
+- sum of degradation products and traloporyl
+```{r}
+#Tralopyril distance from fishfarm and different matrics
+tr <- subset(df24z_finalxy, KOMPONENT == "Tralopyril" & Sample.type %in% c("Seawater", "Sediment", "Benthic animals"))
+
+tr2 <- subset(df24z_finalxy, Level %in% c("Antifouling agents", "Degradation products - Tralopyril") & Sample.type %in% c("Seawater", "Sediment", "Benthic animals"))
+
+tr2x <- subset(tr2, !KOMPONENT %in% c("Copper pyrithione", "Zinc pyrithione", "Copper", "Zinc"))
+
+#add grouping
+tr2y = tr2x %>%
+  mutate(Pot = case_when(Level %in% c("Antifouling agents") ~ "Original",
+                           Level %in% c("Degradation products - Tralopyril") ~ "Degradation"))
+
+    
+#fill = interaction(Subcategory, Group))
+
+library(dplyr)
+library(stringr)
+tr2z=tr2y %>% 
+  mutate(x_label = factor(str_replace(interaction(Pot, KOMPONENT), '\\.', ' / '),
+                          ordered=TRUE))
+
+ggplot(df, aes(x=x_label, y=total, fill=type)) +
+  geom_bar(stat='identity') +
+  labs(x='Year / Treatment')
+
+
+tr2zz = tr2z  %>%
+  group_by(KOMPONENT, Sample.type, Plass) %>%
+  mutate(meanx2 = mean(plotting, na.rm = TRUE))%>% 
+  ungroup()
+
+#set order of dample kcompounds
+tr2zzz <- tr2zz %>% 
+  mutate(Pot = factor(Pot, levels = c("Original", "Degradation")))
+
+
+ggplot(tr2zzz, aes(x=as.factor(Pot), y=as.numeric(meanx2)+1, fill= forcats::fct_rev(KOMPONENT)))+
+  #geom_point()+
+  geom_bar(stat="identity", position="stack")+
+  #geom_col( width=0.8, position=position_dodge())+
+  #geom_bar(stat="identity", position = position_dodge())+
+  scale_y_continuous(trans='log10')+
+  #geom_dotplot(binaxis='y', stackdir='center')
+  facet_grid(Sample.type~Plass, scales="free")
+
+#in Tralopyril, look for effects from station. Is there higher in M�renot?
+ggplot(tr, aes(x=as.factor(Plass), y=as.numeric(plotting), fill=Lokasjon, colour=Lokasjon))+
+  geom_point(size=3)+
+  scale_y_continuous(trans='log10')+
+  #geom_dotplot(binaxis='y', stackdir='center')
+  facet_grid(Sample.type~., scales="free")
+  ylim(0, 100)
+  
+#tralopyril with depth - only in sediment
+t_sed <- subset(tr, Sample.type =="Sediment")  
+
+ggplot(t_sed, aes(x=as.numeric(Havdyp), y=as.numeric(plotting), fill=Lokasjon, colour=Lokasjon))+
+  geom_point(size=3)+
+  scale_y_continuous(trans='log10')
+  #geom_dotplot(binaxis='y', stackdir='center')
+  facet_grid(Sample.type~., scales="free")
+  ylim(0, 100)
+
+```
+
+
+#Looking at Cu and Zn
+
