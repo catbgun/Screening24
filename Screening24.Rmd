@@ -37,24 +37,37 @@ lapply(Packages, library, character.only = TRUE)
 #Load file
 ```{r echo = T, results = 'hide'}
 Sys.setlocale(locale="no_NO")
-df24 <- read.table("Scr24_Data_05_V03.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
+
+#df24 <- read.table("Scr24_Data_05_V03.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
+df24 <- read.table("Scre24_R_data fra Malcolm.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
+
 ```
+
+#From wide to long data format
+```{r from wide to long}
+df24_long <- gather(df24, compound, value, Diflubenzuron:Cu, factor_key=TRUE)
+#df23_longg <- subset(df23_long, !is.na(value)) #usikker om denne tar bort alle versjoner av na
+
+```
+
 
 #Make summary table count - number of samples per sample type and compound
 ```{r}
 count <- df24 %>% count(KOMPONENT, Sample.type)
 head(df24)
 
+print(unique(df24_long$compound))
+
 #add grouping
-df24x = df24%>%
-  mutate(Level = case_when(KOMPONENT %in% c("Cadmium", "Lead", "Arsenic", "Nickel", "Cobalt", "Iron", "Manganese", "Chromium", "Vanadium", "Potassium", "Aluminium", "Magnesium", "Silver") ~ "Other metals",
-                           KOMPONENT %in% c("Diflubenzuron", "Teflubenzuron", "Emamectin") ~ "Lice remediation",
-                                KOMPONENT %in% c("TFA", "CFPCN", "ACBE", "CHPAPE", "ACCA", "CDHFPCN", "CHFPCN", "CCEFPE", "CCPCA", "BCCPCA") ~ "Degradation products - Tralopyril",
-                           KOMPONENT %in% c("Tralopyril", "Copper pyrithione", "Zinc pyrithione", "Copper", "Zinc") ~ "Antifouling agents"))
+df24_long = df24_long%>%
+  mutate(Group = case_when(#compound %in% c("Cu", "Zn") ~ "Metals", #skal vi ikke ha med de andre metallene?
+                           compound %in% c("Diflubenzuron", "Teflubenzuron", "Emamectin", "Hexaflu") ~ "Delousing agents",
+                                compound %in% c("TFA", "BCCPCA", "TR1", "CHFPCN", "CDHFPCN", "TR2", "TR3", "TR4", "CFPCN", "TR5") ~ "Associated compounds - Tralopyril",
+                           compound %in% c("Tralopyril", "CuPT", "Cu", "Zn") ~ "Antifouling agents"))
 
 
 
-df24x <- subset(df24x, KOMPONENT != "Grunnpris")
+#df24x <- subset(df24x, KOMPONENT != "Grunnpris")
 ```
 
 
@@ -62,10 +75,10 @@ df24x <- subset(df24x, KOMPONENT != "Grunnpris")
 #remove n.a due to limited sample material. SHould not be included in calculations
 #df24y <- subset(df24x, RESULTAT != "n.a.")
 
-df24y_freq = df24x %>%
-  group_by(KOMPONENT, Sample.type) %>%
-  mutate(lodcount = sum(lengths(regmatches(RESULTAT, gregexpr("<", RESULTAT)))), 
-            n = (length(RESULTAT)),
+df24y_freq = df24_long %>%
+  group_by(compound, Matrix) %>%
+  mutate(lodcount = sum(lengths(regmatches(value, gregexpr("<", value)))), 
+            n = (length(value)),
             det_frac = (100-(lodcount/n)*100))%>%
   ungroup() 
 
@@ -77,10 +90,10 @@ df24y_freq = df24x %>%
 df24z_freq <- df24y_freq %>% 
   mutate(plotting = ifelse(det_frac == 0, 
                            "<LOD", 
-                           RESULTAT))
+                           value))
 
 # claculate 0.5xLOD 
-df24z_filt_X <- cbind(df24z_freq[,c(1:27)], apply(df24z_freq[,28, drop=F],2, dLimity))
+df24z_filt_X <- cbind(df24z_freq[,c(1:18)], apply(df24z_freq[,19, drop=F],2, dLimity))
 
 ```
 
@@ -88,7 +101,7 @@ Calculate mean
 - sjekk at ble riktig! ta ut excel f eks
 ```{r}
 df24z_finalx = df24z_filt_X  %>%
-  group_by(KOMPONENT, Sample.type) %>%
+  group_by(compound, Matrix) %>%
   mutate(meanx = mean(plotting, na.rm = TRUE))%>% 
   ungroup()
 
@@ -99,9 +112,8 @@ df24z_finalx = df24z_filt_X  %>%
 
 Set order of substances in plot
 ```{r}
-df24z_finalx$KOMPONENT <- as.character(df24z_finalx$KOMPONENT)
-df24z_finalx$Level <- as.character(df24z_finalx$Level)
-
+df24z_finalx$compound <- as.character(df24z_finalx$compound)
+df24z_finalx$Group <- as.character(df24z_finalx$Group)
 
 ```
 
@@ -109,13 +121,9 @@ df24z_finalx$Level <- as.character(df24z_finalx$Level)
 ```{r}
 #to get "s" for suspect and "n.a." for not available
 df24z_finalxy <- df24z_finalx %>% 
-  mutate(meanxyz = ifelse(KOMPONENT == "HCPPE" |
-                            KOMPONENT == "ACCA" | 
-                            KOMPONENT =="CCEFPE"
-                          | KOMPONENT =="CDHFPCN"|
-                            KOMPONENT == "CFPCN"|
-                            KOMPONENT == "CHFPCN"|
-                            KOMPONENT =="CHPAPE",
+  mutate(meanxyz = ifelse(compound == "CHFPCN" |
+                            compound == "CFPCN" | 
+                            compound=="TR5",
                            "S", 
                            " "))
 
@@ -141,18 +149,18 @@ df24z_finalxy <- df24z_finalx %>%
 #unique(wwt$Sample.type)
 
 #wwt$Sample.type <- revalue(wwt$Sample.type, c("Water, filtered" = "Water, filtered (ng/L)", "Water, particulate" = "Water, particulate (ng/g, d.w.)", "Sludge" ="Sludge (ng/g, d.w.)", "Sediment" ="Marine sediment (ng/g, d.w.)", "Blue mussel" ="Blue mussel (ng/g, w.w.)"))
+print(unique(df24z_finalxy$Matrix))
 
 #set order of dample types
 #set order of dample kcompounds
 df24z_finalxy <- df24z_finalxy %>% 
-  mutate(Sample.type = factor(Sample.type, levels = c("Seawater", "Sediment", "Benthic animals", "Fish gills", "Fish liver")))
+  mutate(Sample.type = factor(Matrix, levels = c("Water", "Sediment", "Benthic animals", "Fish_gills", "Fish_liver")))
 
 #set order of dample kcompounds
 df24z_finalxy <- df24z_finalxy %>% 
-  mutate(KOMPONENT = factor(KOMPONENT, levels = c("Copper pyrithione", "Copper", "Zinc pyrithione", "Zinc", "Tralopyril",
-    "ACBE", "ACCA", "BCCPCA", "CCEFPE", "CCPCA", "CDHFPCN", "CFPCN", "CHFPCN", "CHPAPE", "TFA", 
-    "Emamectin", "Diflubenzuron", "Teflubenzuron",
-    "Aluminium", "Arsenic", "Cadmium", "Chromium", "Cobalt", "Iron", "Lead", "Magnesium", "Manganese", "Nickel", "Potassium", "Silver", "Vanadium")))
+  mutate(KOMPONENT = factor(compound, levels = c("CuPT", "Cu", "Zn", "Tralopyril",
+    "BCCPCA", "CCPCA", "CHFPCN", "CDHFPCN", "TR1", "TR2", "TR3", "TR4", "TR5", "CFPCN", "TFA", 
+    "Emamectin", "Diflubenzuron", "Teflubenzuron", "Hexaflu")))
 
 
 ```
@@ -276,4 +284,18 @@ ggplot(t_sed, aes(x=as.numeric(Havdyp), y=as.numeric(plotting), fill=Lokasjon, c
 
 
 #Looking at Cu and Zn
+```{r}
+met_Cu <- subset(tr2, KOMPONENT %in% c("Copper"))
+met_Zn <- subset(tr2, KOMPONENT %in% c("Zinc"))
+
+
+#in Cu and Zn, look for effects from station. Is there higher in Mørenot?
+ggplot(met_Zn, aes(x=as.factor(Plass), y=as.numeric(plotting), fill=Lokasjon, colour=Lokasjon))+
+  geom_point(size=3)+
+  scale_y_continuous(trans='log10')+
+  #geom_dotplot(binaxis='y', stackdir='center')
+  facet_grid(Sample.type~., scales="free")
+  ylim(0, 100)
+
+```
 
