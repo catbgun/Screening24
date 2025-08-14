@@ -38,7 +38,7 @@ lapply(Packages, library, character.only = TRUE)
 ```{r echo = T, results = 'hide'}
 Sys.setlocale(locale="no_NO")
 
-#df24 <- read.table("Scr24_Data_05_V03.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
+#df24old <- read.table("Scr24_Data_05_V03.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
 df24 <- read.table("Scre24_R_data fra Malcolm.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
 
 ```
@@ -47,29 +47,28 @@ df24 <- read.table("Scre24_R_data fra Malcolm.txt", skip=0, header=TRUE, sep="\t
 ```{r from wide to long}
 df24_long <- gather(df24, compound, value, Diflubenzuron:Cu, factor_key=TRUE)
 #df23_longg <- subset(df23_long, !is.na(value)) #usikker om denne tar bort alle versjoner av na
-
 ```
-
 
 #Make summary table count - number of samples per sample type and compound
 ```{r}
-count <- df24 %>% count(KOMPONENT, Sample.type)
+#count <- df24 %>% count(KOMPONENT, Sample.type)
 head(df24)
 
 print(unique(df24_long$compound))
 
+df24_longx <- subset(df24_long, compound != "Hexaflu")
+
 #add grouping
-df24_long = df24_long%>%
+df24_long = df24_longx%>%
   mutate(Group = case_when(#compound %in% c("Cu", "Zn") ~ "Metals", #skal vi ikke ha med de andre metallene?
-                           compound %in% c("Diflubenzuron", "Teflubenzuron", "Emamectin", "Hexaflu") ~ "Delousing agents",
-                                compound %in% c("TFA", "BCCPCA", "TR1", "CHFPCN", "CDHFPCN", "TR2", "TR3", "TR4", "CFPCN", "TR5") ~ "Associated compounds - Tralopyril",
+                           compound %in% c("Diflubenzuron", "Teflubenzuron", "Emamectin") ~ "Delousing agents",
+                                compound %in% c("TFA", "BCCPCA", "TR1", "CHFPCN", "CCPCA", "CDHFPCN", "TR2", "TR3", "TR4", "CFPCN", "TR5") ~ "Tralopyril - Associated compounds",
                            compound %in% c("Tralopyril", "CuPT", "Cu", "Zn") ~ "Antifouling agents"))
 
 
 
 #df24x <- subset(df24x, KOMPONENT != "Grunnpris")
 ```
-
 
 ```{r Detection frequency}
 #remove n.a due to limited sample material. SHould not be included in calculations
@@ -114,7 +113,6 @@ Set order of substances in plot
 ```{r}
 df24z_finalx$compound <- as.character(df24z_finalx$compound)
 df24z_finalx$Group <- as.character(df24z_finalx$Group)
-
 ```
 
 ##Part 1
@@ -122,7 +120,12 @@ df24z_finalx$Group <- as.character(df24z_finalx$Group)
 #to get "s" for suspect and "n.a." for not available
 df24z_finalxy <- df24z_finalx %>% 
   mutate(meanxyz = ifelse(compound == "CHFPCN" |
-                            compound == "CFPCN" | 
+                            compound == "CFPCN" |
+                            compound == "CDHFPCN" |
+                            compound == "TR1" |
+                            compound == "TR2" |
+                            compound == "TR3" |
+                            compound == "TR4" |
                             compound=="TR5",
                            "S", 
                            " "))
@@ -148,7 +151,8 @@ df24z_finalxy <- df24z_finalx %>%
 #better names for sample types
 #unique(wwt$Sample.type)
 
-#wwt$Sample.type <- revalue(wwt$Sample.type, c("Water, filtered" = "Water, filtered (ng/L)", "Water, particulate" = "Water, particulate (ng/g, d.w.)", "Sludge" ="Sludge (ng/g, d.w.)", "Sediment" ="Marine sediment (ng/g, d.w.)", "Blue mussel" ="Blue mussel (ng/g, w.w.)"))
+df24z_finalxy$compound <- revalue(df24z_finalxy$compound, c("CuPT" = "Copper pyrithione"))
+
 print(unique(df24z_finalxy$Matrix))
 
 #set order of dample types
@@ -156,12 +160,22 @@ print(unique(df24z_finalxy$Matrix))
 df24z_finalxy <- df24z_finalxy %>% 
   mutate(Sample.type = factor(Matrix, levels = c("Water", "Sediment", "Benthic animals", "Fish_gills", "Fish_liver")))
 
-#set order of dample kcompounds
-df24z_finalxy <- df24z_finalxy %>% 
-  mutate(KOMPONENT = factor(compound, levels = c("CuPT", "Cu", "Zn", "Tralopyril",
+#set order of sample compounds
+df24z_finalxyz <- df24z_finalxy %>% 
+  mutate(compound = factor(compound, levels = c("Copper pyrithione", "Cu", "Zn", "Tralopyril", 
     "BCCPCA", "CCPCA", "CHFPCN", "CDHFPCN", "TR1", "TR2", "TR3", "TR4", "TR5", "CFPCN", "TFA", 
-    "Emamectin", "Diflubenzuron", "Teflubenzuron", "Hexaflu")))
+    "Emamectin", "Diflubenzuron", "Teflubenzuron")))
 
+#set order of dample kcompounds
+df24z_finalxyzz <- df24z_finalxyz %>% 
+  mutate(Group = factor(Group, levels = c("Antifouling agents", "Tralopyril - Associated compounds", "Delousing agents")))
+
+#Change names of matrices
+df24z_finalxyzz$Matrix <- revalue(df24z_finalxyzz$Matrix, c("Water" = "Seawater (ng/L)", "Sediment" = "Sediment (ng/g, d.w.)", "Benthic animals" ="Benthic animals (ng/g, w.w.)", "Fish_liver" ="Fish liver (ng/g, w.w.)", "Fish_gills" ="Fish gill (ng/g, w.w.)"))
+
+#set order of matrices
+df24z_finalxyzz1 <- df24z_finalxyzz %>% 
+  mutate(Matrix = factor(Matrix, levels = c("Seawater (ng/L)", "Sediment (ng/g, d.w.)", "Benthic animals (ng/g, w.w.)", "Fish gill (ng/g, w.w.)", "Fish liver (ng/g, w.w.)")))
 
 ```
 
@@ -169,10 +183,15 @@ df24z_finalxy <- df24z_finalxy %>%
 ```{r }
 #Fjern alle < LOD
 #wwt3 <- subset(wwt2, meanx != "NaN") 
-df24z_finalxyz <- subset(df24z_finalxy, det_frac != 0) 
+#df24z_finalxyzzz <- subset(df24z_finalxyzz1, det_frac != 0) 
 df24z_finalx
 
-ggplot(df24z_finalxy, aes(x=Sample.type, y=fct_rev(KOMPONENT), fill=det_frac)) +
+#Remove benthic animal metal values to make white in plot
+df24z_finalxyzz3 <- df24z_finalxyzz1[!(df24z_finalxyzz1$Matrix == "Benthic animals (ng/g, w.w.)" & df24z_finalxyzz1$compound %in% c("Cu", "Zn")),] 
+
+nrow(df24z_finalxyzz3)
+
+ggplot(df24z_finalxyzz3, aes(x=Matrix, y=fct_rev(compound), fill=det_frac)) +
   geom_tile(aes(fill = det_frac), colour="black")+  # background colours are mapped according to the value column
   #geom_text(aes(label=ifelse(is.na(meanx), "", sigfig(meanx, 1))), color = "white", size = 5)
   geom_text(aes(label= ifelse(meanxyz=="S", meanxyz, ifelse(is.na(meanx), " ", as.numeric(sigfig(meanx, 1))))), color = "white", size = 5)+
@@ -206,7 +225,7 @@ ggplot(df24z_finalxy, aes(x=Sample.type, y=fct_rev(KOMPONENT), fill=det_frac)) +
   scale_x_discrete(name="") +
   scale_y_discrete(name="") +
   labs(fill="Detection frequency (%)")+
-  facet_grid(Level~., scales="free", space="free_y", labeller = label_wrap_gen(width=2))
+  facet_grid(Group~., scales="free", space="free_y", labeller = label_wrap_gen(width=2))
 
 
 ggsave("WW_t2.png", wwt_long2, width = 10, height = 12)
