@@ -38,23 +38,23 @@ lapply(Packages, library, character.only = TRUE)
 ```{r echo = T, results = 'hide'}
 Sys.setlocale(locale="no_NO")
 
-#df24old <- read.table("Scr24_Data_05_V03.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
 df24 <- read.table("Scre24_R_data fra Malcolm.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
-
 ```
 
 #From wide to long data format
 ```{r from wide to long}
 df24_long <- gather(df24, compound, value, Diflubenzuron:Cu, factor_key=TRUE)
 #df23_longg <- subset(df23_long, !is.na(value)) #usikker om denne tar bort alle versjoner av na
+
+#Ta bort service stasjonen
+#df24_longx <- subset(df24_long, !Stasjonskode =="D")
+#df24_longD <- subset(df24_long, Stasjonskode =="D")
 ```
 
 #Make summary table count - number of samples per sample type and compound
 ```{r}
 #count <- df24 %>% count(KOMPONENT, Sample.type)
-head(df24)
-
-print(unique(df24_long$compound))
+#print(unique(df24_long$compound))
 
 df24_longx <- subset(df24_long, compound != "Hexaflu")
 
@@ -115,7 +115,7 @@ df24z_finalx$compound <- as.character(df24z_finalx$compound)
 df24z_finalx$Group <- as.character(df24z_finalx$Group)
 ```
 
-##Part 1
+
 ```{r}
 #to get "s" for suspect and "n.a." for not available
 df24z_finalxy <- df24z_finalx %>% 
@@ -129,53 +129,33 @@ df24z_finalxy <- df24z_finalx %>%
                             compound=="TR5",
                            "S", 
                            " "))
-
-
-#Rename names e.g. starting with a number
-#unique(part1_finalxy$compound)
-
-#part1_finalxyx <- subset(part1_finalxy, compound!="DTBPPO")
-#part1_finalxy$compound <- revalue(part1_finalxyx$compound, c("BENAZOL.P"="BENAZOL P", #"X23BPDT"="23BPDT", "X34DMPZ"="34DMPZ", "X2BBTMP"="2BBTMP", "X34DMPZP"="34DMPZP", #"X35DMPZ"="35DMPZ", "X2BDOMP"="2BDOMP", "X4NAS"="4NAS", "B.2ETF"="B-2ETF", "X2BHMPTP"="2BHMPTP", #"X2BMPP"="2BMPP", "X2BMTP"="2BMTP", "X22BPDT"="22BPDT", "X2TBCLBEP"="2TBCLBEP", "B.2ETF"="B-2ETF", #"X2BDMP"="2BDMP", "DTBPPO.1"="DTBPPO" )) #er den siste riktig?
-
-#unique(part1_finalxy$compound)
-#part1_finalxyz <- subset(part1_finalxy, compound!="Fett")
-
-#length(unique(part1_finalxy$compound))
 ```
 
 ### All together
 ```{r }
-#subset
-#wwt <- subset(part1_finalxyz, Category == "Wastewater treatment")
 
-#better names for sample types
-#unique(wwt$Sample.type)
+df24z_finalxy$compound <- revalue(df24z_finalxy$compound, c("CuPT" = "Copper/Zinc pyrithione", "Emamectin" ="Emamectin benzoate"))
 
-df24z_finalxy$compound <- revalue(df24z_finalxy$compound, c("CuPT" = "Copper pyrithione"))
-
-print(unique(df24z_finalxy$Matrix))
-
-#set order of dample types
 #set order of dample kcompounds
 df24z_finalxy <- df24z_finalxy %>% 
   mutate(Sample.type = factor(Matrix, levels = c("Water", "Sediment", "Benthic animals", "Fish_gills", "Fish_liver")))
 
 #set order of sample compounds
 df24z_finalxyz <- df24z_finalxy %>% 
-  mutate(compound = factor(compound, levels = c("Copper pyrithione", "Cu", "Zn", "Tralopyril", 
+  mutate(compound = factor(compound, levels = c("Copper/Zinc pyrithione", "Cu", "Zn", "Tralopyril", 
     "BCCPCA", "CCPCA", "CHFPCN", "CDHFPCN", "TR1", "TR2", "TR3", "TR4", "TR5", "CFPCN", "TFA", 
-    "Emamectin", "Diflubenzuron", "Teflubenzuron")))
+    "Emamectin benzoate", "Diflubenzuron", "Teflubenzuron")))
 
-#set order of dample kcompounds
+#set order of sample kcompounds
 df24z_finalxyzz <- df24z_finalxyz %>% 
   mutate(Group = factor(Group, levels = c("Antifouling agents", "Tralopyril - Associated compounds", "Delousing agents")))
 
 #Change names of matrices
-df24z_finalxyzz$Matrix <- revalue(df24z_finalxyzz$Matrix, c("Water" = "Seawater (ng/L)", "Sediment" = "Sediment (ng/g, d.w.)", "Benthic animals" ="Benthic animals (ng/g, w.w.)", "Fish_liver" ="Fish liver (ng/g, w.w.)", "Fish_gills" ="Fish gill (ng/g, w.w.)"))
+df24z_finalxyzz$Matrix <- revalue(df24z_finalxyzz$Matrix, c("Water" = "Seawater (ng/L)", "Sediment" = "Sediment (ng/g, d.w.)", "Benthic animals" ="Benthic animals (ng/g, w.w.)", "Fish_liver" ="Fish liver (ng/g, d.w.)", "Fish_gills" ="Fish gill (ng/g, d.w.)"))
 
 #set order of matrices
 df24z_finalxyzz1 <- df24z_finalxyzz %>% 
-  mutate(Matrix = factor(Matrix, levels = c("Seawater (ng/L)", "Sediment (ng/g, d.w.)", "Benthic animals (ng/g, w.w.)", "Fish gill (ng/g, w.w.)", "Fish liver (ng/g, w.w.)")))
+  mutate(Matrix = factor(Matrix, levels = c("Seawater (ng/L)", "Sediment (ng/g, d.w.)", "Benthic animals (ng/g, w.w.)", "Fish gill (ng/g, d.w.)", "Fish liver (ng/g, d.w.)")))
 
 ```
 
@@ -189,9 +169,7 @@ df24z_finalx
 #Remove benthic animal metal values to make white in plot
 df24z_finalxyzz3 <- df24z_finalxyzz1[!(df24z_finalxyzz1$Matrix == "Benthic animals (ng/g, w.w.)" & df24z_finalxyzz1$compound %in% c("Cu", "Zn")),] 
 
-nrow(df24z_finalxyzz3)
-
-ggplot(df24z_finalxyzz3, aes(x=Matrix, y=fct_rev(compound), fill=det_frac)) +
+wwt_long2 <- ggplot(df24z_finalxyzz3, aes(x=Matrix, y=fct_rev(compound), fill=det_frac)) +
   geom_tile(aes(fill = det_frac), colour="black")+  # background colours are mapped according to the value column
   #geom_text(aes(label=ifelse(is.na(meanx), "", sigfig(meanx, 1))), color = "white", size = 5)
   geom_text(aes(label= ifelse(meanxyz=="S", meanxyz, ifelse(is.na(meanx), " ", as.numeric(sigfig(meanx, 1))))), color = "white", size = 5)+
@@ -228,14 +206,70 @@ ggplot(df24z_finalxyzz3, aes(x=Matrix, y=fct_rev(compound), fill=det_frac)) +
   facet_grid(Group~., scales="free", space="free_y", labeller = label_wrap_gen(width=2))
 
 
-ggsave("WW_t2.png", wwt_long2, width = 10, height = 12)
+ggsave("WW_t2.png", wwt_long2, width = 9, height = 9)
 
 ```
+
+## Correlation plots, please
+Tralopyril and degradation products ++
+```{r}
+library("ggpubr")
+head(df24)
+
+sedi <- subset(df24, Matrix == "Sediment")
+
+as.numericclass(sedi$Tralopyril)
+as.numeric
+class(sedi$CHFPCN)
+  
+#IMPORTANT!!! Correlation plot for biodeg and parameters
+ggplot(sedi, aes(as.numeric(Tralopyril), as.numeric(CFPCN)))+
+  geom_point(aes(colour=interaction(factor(Stasjonskode))), size=6)+
+    scale_y_log10()+
+  scale_x_log10()+
+  theme_bw()+
+  geom_smooth(method = "lm", se = FALSE, colour="black")+
+  stat_regline_equation(label.x=0.35, label.y=2.15, size=5) +
+  stat_cor(aes(label=..rr.label..), label.x=0.35, label.y=2.4, size=5)+
+  #stat_cor(method = "pearson", label.x = 0.30, label.y = 2, size=5)+
+  theme(axis.text.y = element_text(size= 18),
+        axis.title.x = element_text(size = 22, margin=margin(20,0,0,0)),
+        axis.title.y = element_text(size = 22, margin=margin(0,20,0,0)),
+        strip.text.x = element_text(size = 32),
+        axis.text.x = element_text(angle=0, hjust=0.5, vjust=0, size = 18),
+        plot.title=element_text(size=30, face="bold"),
+        legend.text=element_text(size=22),
+        legend.title = element_blank())+
+  labs(title = "", x = "Tralopyril (ng/g)", y = "CFPCN (instrument signal)")
+
+
+ylim(0, -0.007)+
+  scale_colour_manual(values=c("#F8766D", "#7CAE00", "#00BFC4"))+
+  xlim(0, 8)
+```
+
+
+
+
+
+
+
+
+
 
 ##Antifouling agents
 - distance from site
 - sum of degradation products and traloporyl
 ```{r}
+#scatterplot
+tr <
+
+
+
+
+
+
+
 #Tralopyril distance from fishfarm and different matrics
 tr <- subset(df24z_finalxy, KOMPONENT == "Tralopyril" & Sample.type %in% c("Seawater", "Sediment", "Benthic animals"))
 
@@ -301,7 +335,6 @@ ggplot(t_sed, aes(x=as.numeric(Havdyp), y=as.numeric(plotting), fill=Lokasjon, c
 
 ```
 
-
 #Looking at Cu and Zn
 ```{r}
 met_Cu <- subset(tr2, KOMPONENT %in% c("Copper"))
@@ -318,3 +351,262 @@ ggplot(met_Zn, aes(x=as.factor(Plass), y=as.numeric(plotting), fill=Lokasjon, co
 
 ```
 
+## PNEC figure
+The following compounds have values available: 
+Tralopyril, BCCPA, CCPCA, CHFPCN, TFA, Zn, Cu, Diflubenzuron, Teflubenzuron, Emamectin benzoate
+```{r}
+library(magrittr)
+newtablexx <- subset(df24z_finalxyzz3, value != "n.a.")
+#følgende gjør om alle "< LOD" observasjoner til NA slik at de ikke inkluderes som minimumsverdi
+newtablexx$value <- as.numeric(newtablexx$value)
+newtablexxx <- newtablexx %>% drop_na(value)
+
+pnec <- subset(newtablexxx, compound %in% c("Tralopyril", "BCCPCA", "CCPCA", "CHFPCN", "TFA", "Cu", "Zn", "Diflubenzuron", "Teflubenzuron", "Emamectin benzoate"))
+
+pnec3 <- pnec%>%
+  mutate(sample_category = case_when
+         (Sample.type %in% c("Water") ~ "Seawater",
+          Sample.type %in% c("Sediment") ~ "Sediment"))
+          #Sample.type %in% c("Blubber", "Blue mussel", "Liver", "Muscle") ~ "Biota_marine_fish"))
+
+#filter out max an min values for each category. Wich categories to choose? 
+pnec_max_minx <- pnec3 %>%
+  group_by(compound, sample_category) %>% #bruk noe annet enn treatment. Må tilpasses pnec kategorier. lage nye
+  mutate(Min = min(value), Max = max(value))
+
+
+#Make new categories to match the PNEC categories of freswater, sediment og biota
+#not using air values here
+#pnec_max_miny <- subset(pnec_max_minx, !Medium_id2=="Air")
+
+#Laste opp fil med PNEC verdier. Laget fra info i word
+#condition and sample category
+# short and compound
+dx <- read.table("PNECs_Screening24.txt", header=TRUE, sep="\t", na.string=c(""))
+
+#Calculate to the correct abbreviations
+#dx$Freshwater <- dx$Freshwater *1000
+#dx$Sediment2 <- dx$Sediment *1
+#dx$Biota2 <- dx$Biota*1
+
+#delete those missing for all categories
+#dxx <- dx[ -c(6) ]
+#x <- dxx[rowSums(is.na(dxx[,4:6]))!=3,]
+
+dx_long <- gather(dx, sample_category, limit, Seawater:Sediment, factor_key=TRUE)
+
+#one may have wrong class
+#pnec_max_min4 <- as.data.frame(pnec_max_min2)
+#subsetting to keep only those with match
+#pnec_max_min4$sample_category <- revalue(pnec_max_min4$sample_category, c("Freshwater"="Freshwater2"))
+
+#pnec_max_min5 <- subset(pnec_max_min4, sample_category%in% c("Freshwater2", "Sediment2", "Biota2"))
+
+
+
+#MERGE. Til pnec_max_min2 skal vi fra dx legge til alle kolonner ved å matche 
+dx2 <- merge(x=pnec_max_minx,y=dx_long, by=c(as.character("compound"), as.character("sample_category")),
+             all.x=TRUE)
+
+nrow(pnec_max_minx)
+#substances to be excluded
+#dx2x <- subset(dx2, !compound %in% c("BHPMEBD", "DMPTDPP", "DMPTTPP", "Sus62", "SYLKL", "SEROLD", "DIUDP", "EMOPCC", #"CTCVB", "DCTCVB", "DCTCVB", "TCTDT", "ETTSDD", "MPSHDOSD", "HOTMIKA", "Fett"))
+
+#ARE THRER wrong abbreviations for pnec??
+
+
+
+```
+
+```{r Cleaning up before plotting}
+#remove duplicate rows before plotting
+dx3 <-dx2 %>% 
+  distinct(Min, Max, compound, sample_category, .keep_all = TRUE)
+
+#remove those not fitting into the pnec categories
+dx4 <- dx3[!is.na(dx3$sample_category),]
+dx5 <- dx4[!is.na(dx4$limit),]
+unique(dx4$compound)
+
+#write.csv(dx5, "C:/Users/CBG/OneDrive - NIVA/1 #Projects/Screening/Screening_R/Screening/Output/240826_TEST_pnec_2.csv", row.names=FALSE)
+
+```
+
+```{r PNEC plot}
+#dx5 <- as.numeric(dx5$limit)
+
+#rfe <- subset(dx5, group=="PBDE")
+
+#dx5$Group <- revalue(dx5$Group, c("UV Stabilizer"="UV"))
+#kug <- subset(dx5, Group == "Other")
+
+ggplot(dx5, aes(y=fct_rev(compound), x=value, xmin = Min, xmax=Max, colour = sample_category))+ 
+  geom_linerange(aes(colour = sample_category, alpha=1), linewidth=2.5, position = position_dodge2(width = 0.7))+
+  geom_point(aes(x=(limit), fill = sample_category),  size=6, shape=18, position = position_dodge2(width = 0.7))+
+  theme_bw()+
+  theme(axis.text.x = element_text(hjust = 1,vjust=1,size = 15,colour="black"),
+        axis.text.y = element_text(size = 15,colour="black"),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0), size=17),
+        panel.spacing = unit(0, "lines"), 
+        strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y = element_text(size = 16, angle = 0, hjust=0),
+        legend.title = element_blank(),
+        legend.text = element_text(size=18),
+        plot.margin = margin(0.8, 0.15, 1.2, 0.15, "cm"),
+        legend.position = "top")+
+  facet_grid(Group~., scales="free_y", space='free')+
+  scale_x_continuous(trans='log10') +  
+  xlab("log10(concentration)")+
+  scale_alpha(guide = 'none')+
+  guides(color=guide_legend("sample_category"), fill = "none")+
+  scale_color_manual(values = c("deepskyblue2", "tan4"),
+  labels = c('Seawater', 'Sediment'))
+  
+
+
+ggsave("pnec23.png", pnecopp, width = 10, height = 18)
+
+#, values = c("red", "blue", "grey"))
+#  scale_colour_manual(labels = c("Biota", "Freshwater", "Sediment"), values = c("red", "blue", "grey"))
+  
+  #scale_fill_manual(values = c("red", "blue", "grey"))
+  #scale_colour_manual(values = c("red", "blue", "grey"))
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Fra 2023!!!
+
+
+```{r Making the PNEC Figure}
+
+
+pnec3 <- pnec%>%
+  mutate(sample_category = case_when
+         (Sample.type %in% c("Water, filtered") ~ "Freshwater",
+          Sample.type %in% c("Sludge", "Soil", "Sediment") ~ "Sediment",
+          Sample.type %in% c("Blubber", "Blue mussel", "Liver", "Muscle") ~ "Biota_marine_fish"))
+
+#filter out max an min values for each category. Wich categories to choose? 
+pnec_max_minx <- pnec3 %>%
+  group_by(compound, sample_category) %>% #bruk noe annet enn treatment. Må tilpasses pnec kategorier. lage nye
+  mutate(Min = min(value), Max = max(value))
+
+
+#Make new categories to match the PNEC categories of freswater, sediment og biota
+#not using air values here
+#pnec_max_miny <- subset(pnec_max_minx, !Medium_id2=="Air")
+
+#Laste opp fil med PNEC verdier. Laget fra info i word
+#condition and sample category
+# short and compound
+dx <- read.table("PNECs Screening 23_v2.txt", header=TRUE, sep="\t", na.string=c(""))
+dx$compound <- revalue(dx$compound, c("DMPSHEN"="OTNE"))
+
+#Calculate to the correct abbreviations
+dx$Freshwater <- dx$Freshwater *1000
+#dx$Sediment2 <- dx$Sediment *1
+#dx$Biota2 <- dx$Biota*1
+
+#delete those missing for all categories
+dxx <- dx[ -c(6) ]
+x <- dxx[rowSums(is.na(dxx[,4:6]))!=3,]
+
+dx_long <- gather(x, sample_category, limit, Freshwater:Biota_marine_fish, factor_key=TRUE)
+
+#one may have wrong class
+#pnec_max_min4 <- as.data.frame(pnec_max_min2)
+#subsetting to keep only those with match
+#pnec_max_min4$sample_category <- revalue(pnec_max_min4$sample_category, c("Freshwater"="Freshwater2"))
+
+#pnec_max_min5 <- subset(pnec_max_min4, sample_category%in% c("Freshwater2", "Sediment2", "Biota2"))
+
+
+
+#MERGE. Til pnec_max_min2 skal vi fra dx legge til alle kolonner ved å matche 
+dx2 <- merge(x=pnec_max_minx,y=dx_long, by=c(as.character("compound"), as.character("sample_category")),
+             all.x=TRUE)
+
+nrow(pnec_max_minx)
+#substances to be excluded
+dx2x <- subset(dx2, !compound %in% c("BHPMEBD", "DMPTDPP", "DMPTTPP", "Sus62", "SYLKL", "SEROLD", "DIUDP", "EMOPCC", "CTCVB", "DCTCVB", "DCTCVB", "TCTDT", "ETTSDD", "MPSHDOSD", "HOTMIKA", "Fett"))
+
+#ARE THRER wrong abbreviations for pnec??
+
+write.csv(dx2x, "C:/Users/CBG/OneDrive - NIVA/1 Projects/Screening/Screening_R/Screening/Output/240826_TEST_pnec.csv", row.names=FALSE)
+```
+
+```{r Cleaning up before plotting}
+#remove duplicate rows before plotting
+dx3 <-dx2x %>% 
+  distinct(Min, Max, compound, sample_category, .keep_all = TRUE)
+
+#remove those not fitting into the pnec categories
+dx4 <- dx3[!is.na(dx3$sample_category),]
+dx5 <- dx4[!is.na(dx4$limit),]
+unique(dx4$compound)
+
+write.csv(dx5, "C:/Users/CBG/OneDrive - NIVA/1 Projects/Screening/Screening_R/Screening/Output/240826_TEST_pnec_2.csv", row.names=FALSE)
+
+```
+
+```{r PNEC plot}
+#dx5 <- as.numeric(dx5$limit)
+
+rfe <- subset(dx5, group=="PBDE")
+
+dx5$Group <- revalue(dx5$Group, c("UV Stabilizer"="UV"))
+kug <- subset(dx5, Group == "Other")
+
+pnecopp <- ggplot(dx5, aes(y=fct_rev(compound), x=value, xmin = Min, xmax=Max, colour = sample_category))+ 
+  geom_linerange(aes(colour = sample_category, alpha=1), linewidth=2.5, position = position_dodge2(width = 0.7))+
+  geom_point(aes(x=(limit), fill = sample_category),  size=6, shape=18, position = position_dodge2(width = 0.7))+
+  theme_bw()+
+  theme(axis.text.x = element_text(hjust = 1,vjust=1,size = 15,colour="black"),
+        axis.text.y = element_text(size = 15,colour="black"),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0), size=17),
+        panel.spacing = unit(0, "lines"), 
+        strip.background = element_blank(),
+        strip.placement = "outside",
+        strip.text.y = element_text(size = 16, angle = 0, hjust=0),
+        legend.title = element_blank(),
+        legend.text = element_text(size=18),
+        plot.margin = margin(0.8, 0.15, 1.2, 0.15, "cm"),
+        legend.position = "top")+
+  facet_grid(Group~., scales="free_y", space='free')+
+  scale_x_continuous(trans='log10') +  
+  xlab("log10(concentration)")+
+  scale_alpha(guide = 'none')+
+  guides(color=guide_legend("sample_category"), fill = "none")+
+  scale_color_manual(values = c("#C77CFF", "#00BFC4", "#7CAE00"),
+  labels = c('Marine biota', 'Freshwater', 'Sediment'))
+  
+
+
+ggsave("pnec23.png", pnecopp, width = 10, height = 18)
+
+#, values = c("red", "blue", "grey"))
+#  scale_colour_manual(labels = c("Biota", "Freshwater", "Sediment"), values = c("red", "blue", "grey"))
+  
+  #scale_fill_manual(values = c("red", "blue", "grey"))
+  #scale_colour_manual(values = c("red", "blue", "grey"))
+
+
+```
