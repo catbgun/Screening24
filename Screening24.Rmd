@@ -38,8 +38,36 @@ lapply(Packages, library, character.only = TRUE)
 ```{r echo = T, results = 'hide'}
 Sys.setlocale(locale="no_NO")
 
-df24 <- read.table("Scre24_R_data fra Malcolm.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
+#df24 <- read.table("Scre24_R_data fra Malcolm.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
+df24 <- read.table("Scre24_R_data fra Malcolm_03.txt", skip=0, header=TRUE, sep="\t", na.string=c(""))
 ```
+
+## Summary table for appendix
+## Sumamry table
+
+```{r create summary table}
+library(dplyr)
+#library(rbind)
+
+dx_sum <- select(df24, "Station", "Diflubenzuron", "Cu", "sUVa_m", "THg_m", "THGTOC_m")
+
+inl %>% count(THg_m)
+
+sum <- df24 %>% 
+  group_by(Matrix) %>% 
+  summarise(across(.cols  = where(is.numeric), .f = list(mean = mean, min = min, max = max, sd = sd), na.rm = TRUE))
+  
+
+
+
+sum_n <- dx_sum %>% 
+  group_by(Station) %>% 
+  length(across(.cols  = where(is.numeric)))
+
+write.csv(sum, "summary monitoingX.csv")
+
+```
+
 
 #From wide to long data format
 ```{r from wide to long}
@@ -92,7 +120,8 @@ df24z_freq <- df24y_freq %>%
                            value))
 
 # claculate 0.5xLOD 
-df24z_filt_X <- cbind(df24z_freq[,c(1:18)], apply(df24z_freq[,19, drop=F],2, dLimity))
+#df24z_filt_X <- cbind(df24z_freq[,c(1:18)], apply(df24z_freq[,19, drop=F],2, dLimity))
+df24z_filt_X <- cbind(df24z_freq[,c(1:20)], apply(df24z_freq[,21, drop=F],2, dLimity))
 
 ```
 
@@ -120,7 +149,7 @@ df24z_finalx$Group <- as.character(df24z_finalx$Group)
 #to get "s" for suspect and "n.a." for not available
 df24z_finalxy <- df24z_finalx %>% 
   mutate(meanxyz = ifelse(compound == "CHFPCN" |
-                            compound == "CFPCN" |
+                            compound == "CFPCN"|
                             compound == "CDHFPCN" |
                             compound == "TR1" |
                             compound == "TR2" |
@@ -129,6 +158,7 @@ df24z_finalxy <- df24z_finalx %>%
                             compound=="TR5",
                            "S", 
                            " "))
+
 ```
 
 ### All together
@@ -151,11 +181,11 @@ df24z_finalxyzz <- df24z_finalxyz %>%
   mutate(Group = factor(Group, levels = c("Antifouling agents", "Tralopyril - Associated compounds", "Delousing agents")))
 
 #Change names of matrices
-df24z_finalxyzz$Matrix <- revalue(df24z_finalxyzz$Matrix, c("Water" = "Seawater (ng/L)", "Sediment" = "Sediment (ng/g, d.w.)", "Benthic animals" ="Benthic animals (ng/g, w.w.)", "Fish_liver" ="Fish liver (ng/g, d.w.)", "Fish_gills" ="Fish gill (ng/g, d.w.)"))
+df24z_finalxyzz$Matrix <- revalue(df24z_finalxyzz$Matrix, c("Water" = "Seawater (ng/L)", "Sediment" = "Sediment (ng/g, d.w.)", "Benthic animals" ="Benthic animals (ng/g, w.w.)", "Fish_liver" ="Fish liver (ng/g, w.w.)", "Fish_gills" ="Fish gill (ng/g, w.w.)"))
 
 #set order of matrices
 df24z_finalxyzz1 <- df24z_finalxyzz %>% 
-  mutate(Matrix = factor(Matrix, levels = c("Seawater (ng/L)", "Sediment (ng/g, d.w.)", "Benthic animals (ng/g, w.w.)", "Fish gill (ng/g, d.w.)", "Fish liver (ng/g, d.w.)")))
+  mutate(Matrix = factor(Matrix, levels = c("Seawater (ng/L)", "Sediment (ng/g, d.w.)", "Benthic animals (ng/g, w.w.)", "Fish gill (ng/g, w.w.)", "Fish liver (ng/g, w.w.)")))
 
 ```
 
@@ -169,15 +199,17 @@ df24z_finalx
 #Remove benthic animal metal values to make white in plot
 df24z_finalxyzz3 <- df24z_finalxyzz1[!(df24z_finalxyzz1$Matrix == "Benthic animals (ng/g, w.w.)" & df24z_finalxyzz1$compound %in% c("Cu", "Zn")),] 
 
+df24z_finalxyzz3$det_frac[df24z_finalxyzz3$det_frac == 0] <- NA
+
 wwt_long2 <- ggplot(df24z_finalxyzz3, aes(x=Matrix, y=fct_rev(compound), fill=det_frac)) +
   geom_tile(aes(fill = det_frac), colour="black")+  # background colours are mapped according to the value column
   #geom_text(aes(label=ifelse(is.na(meanx), "", sigfig(meanx, 1))), color = "white", size = 5)
   geom_text(aes(label= ifelse(meanxyz=="S", meanxyz, ifelse(is.na(meanx), " ", as.numeric(sigfig(meanx, 1))))), color = "white", size = 5)+
- scale_fill_gradient2(low = "#74C476", 
-                       mid = "orange", 
-                       high = "red",
-                       midpoint = 50,
-                       breaks=c(0,50,100), limits=c(0.5,100), na.value = "lightgrey")+  # determine the colour
+  scale_fill_steps2(low = "#B9E8FF", 
+                    mid = "#50C5FF", 
+                    high = "#134e95",
+                    midpoint = 50,
+                    breaks=c(0, 25, 50,75, 100), limits=c(0.5,100), na.value = "lightgrey")+  # determine the colour
    theme(panel.grid.major.x=element_blank(), #no gridlines
         panel.grid.minor.x=element_blank(), 
         panel.grid.major.y=element_blank(), 
@@ -206,9 +238,77 @@ wwt_long2 <- ggplot(df24z_finalxyzz3, aes(x=Matrix, y=fct_rev(compound), fill=de
   facet_grid(Group~., scales="free", space="free_y", labeller = label_wrap_gen(width=2))
 
 
+#ggplot(df24z_finalxyzz3, aes(x=Matrix, y=fct_rev(compound), fill=det_frac)) +
+#  geom_tile(aes(fill = det_frac), colour="black")+  # background colours are mapped according to the value column
+#  #geom_text(aes(label=ifelse(is.na(meanx), "", sigfig(meanx, 1))), color = "white", size = 5)
+#  geom_text(aes(label= ifelse(meanxyz=="S", meanxyz, ifelse(is.na(meanx), " ", as.numeric(sigfig(meanx, 1))))), color #= "white", size = 5)+
+# scale_fill_gradient2(low = "#74C476", 
+#                       mid = "orange", 
+#                       high = "red",
+#                       midpoint = 50,
+#                       breaks=c(0,50,100), limits=c(0.5,100), na.value = "lightgrey")+  # determine the colour
+#   theme(panel.grid.major.x=element_blank(), #no gridlines
+#        panel.grid.minor.x=element_blank(), 
+#        panel.grid.major.y=element_blank(), 
+#        panel.grid.minor.y=element_blank(),
+#        panel.background=element_rect(fill="white"), # background=white
+#        axis.text.x = element_text(angle=45, hjust = 1,vjust=1,size = 15,colour="black"),
+#        plot.title = element_text(size=18,colour="black", vjust = 1, face="bold"),
+#        axis.text.y = element_text(size = 12, colour="black"),
+#        legend.text=element_text(size=13),
+#        axis.line.x = element_line(color="black", linewidth = 1),
+#        axis.line.y = element_line(color="black", linewidth = 1),
+#        axis.ticks = element_line(color="black", linewidth=1),
+#        legend.position =c(0.85, 0.96),
+#        legend.direction = "horizontal",
+#        plot.margin = margin(1.3, 0.2, 0.15, 0.15, "cm"), #top, right, bottom, left
+#        legend.margin=margin(0,0,0,0),
+#        legend.box.margin=margin(10,10,140,10),
+#        strip.text.x = element_text(size = 15),
+#        panel.spacing.x = unit(0.2, "lines"),
+#        legend.title=element_text(size=12), 
+#        strip.text.y = element_text(angle = 0, size=12)) +
+#  ggtitle("") + 
+#  scale_x_discrete(name="") +
+#  scale_y_discrete(name="") +
+#  labs(fill="Detection frequency (%)")+
+#  facet_grid(Group~., scales="free", space="free_y", labeller = label_wrap_gen(width=2))
+
+
 ggsave("WW_t2.png", wwt_long2, width = 9, height = 9)
 
 ```
+
+
+
+
+
+
+
+Boxplot Tralopyril distance
+```{r}
+sedT <- subset(df24z_finalxyzz3, compound == "Tralopyril" & Matrix == "Sediment (ng/g, d.w.)")
+sedTT <- subset(sedT, !Stasjonskode == "D")
+
+sedTT$plotting <- as.numeric(sedTT$plotting)
+sedTT$value <- as.numeric(sedTT$value)
+sedT$Distance.to.cage <- as.numeric(sedT$Distance.to.cage)
+typeof(sedT$value)
+
+#add grouping
+sedTTx = sedTT%>%
+  mutate(Groupx = case_when(Stasjonsnummer %in% c("1") ~ "1",
+                            Stasjonsnummer %in% c("3") ~ "3",
+                           Stasjonsnummer %in% c("4", "5", "6") ~ "4-6",
+                           Stasjonsnummer %in% c("2", "6_ref")~ "2 and ref."))
+
+ggplot(sedTTx, aes(y=value,  fill=as.factor(Groupx)))+
+  geom_boxplot(aes(fill=Groupx))
+
+```
+
+
+
 
 ## Correlation plots, please
 Tralopyril and degradation products ++
@@ -248,9 +348,124 @@ ylim(0, -0.007)+
   xlim(0, 8)
 ```
 
+#for Haver_, create one with mol/L tralopyril and TFA
+Tralopyril Mw: 349,53 g/mol
+TFA Mw: 114,02 g/mol
+nano: 1 000 000 000
+```{r Tralopyril~TFA molar}
+sedi$tralopyril2 <- (as.numeric(sedi$Tralopyril))/349.53 #nmol/L
+sedi$TFA2 <- (as.numeric(sedi$TFA))/114.02 #nmol/L
+
+sedi$tralopyril3 <- ((as.numeric(sedi$Tralopyril)/1000000000)/349.53)*1000000000 #nmol/L
+sedi$TFA3 <- ((as.numeric(sedi$TFA)/1000000000)/114.02)*1000000000 #nmol/L
+
+sedi2 <- subset(sedi, Stasjonskode != "D")
+
+ggplot(sedi, aes(as.numeric(tralopyril2), as.numeric(TFA2)))+
+  geom_point(aes(colour=interaction(factor(Stasjonskode))), size=6)+
+  scale_y_log10()+
+  scale_x_log10()+
+  theme_bw()+
+  geom_smooth(method = "lm", se = FALSE, colour="black")+
+  stat_regline_equation(label.x=log(0.2), label.y=0.5, size=5) +
+  stat_cor(aes(label=..rr.label..), label.x=log(0.2), label.y=0.7, size=5)+
+  #stat_cor(method = "pearson", label.x = 0.30, label.y = 2, size=5)+
+  theme(axis.text.y = element_text(size= 18),
+        axis.title.x = element_text(size = 22, margin=margin(20,0,0,0)),
+        axis.title.y = element_text(size = 22, margin=margin(0,20,0,0)),
+        strip.text.x = element_text(size = 32),
+        axis.text.x = element_text(angle=0, hjust=0.5, vjust=0, size = 18),
+        plot.title=element_text(size=30, face="bold"),
+        legend.text=element_text(size=22),
+        legend.title = element_blank())+
+  labs(title = "", x = "Tralopyril (nmol/g)", y = "TFA (nmol/g)")
+```
 
 
 
+
+## Look at relationships with depth and distance from cage
+```{r}
+sedi <- subset(df24, Matrix == "Sediment")
+RColorBrewer::display.brewer.all()
+
+ggplot(sedi, aes(as.numeric(Depth), as.numeric(Tralopyril)))+
+  geom_point(aes(colour=interaction(factor(Stasjonskode))), size=6)+
+  scale_y_log10()+
+  scale_x_log10()+
+  theme_bw()+
+  geom_smooth(method = "lm", se = FALSE, colour="black")+
+  stat_regline_equation(label.x=1.5, label.y=5.8, size=5) +
+  stat_cor(aes(label=..rr.label..), label.x=1.5, label.y=5.6, size=5)+
+  #stat_cor(method = "pearson", label.x = 0.30, label.y = 2, size=5)+
+  theme(axis.text.y = element_text(size= 18),
+        axis.title.x = element_text(size = 22, margin=margin(20,0,0,0)),
+        axis.title.y = element_text(size = 22, margin=margin(0,20,0,0)),
+        strip.text.x = element_text(size = 32),
+        axis.text.x = element_text(angle=0, hjust=0.5, vjust=0, size = 18),
+        plot.title=element_text(size=30, face="bold"),
+        legend.text=element_text(size=22),
+        legend.title = element_blank())+
+  labs(title = "", x = "Ocean depth (m)", y = "Tralopyril (ng/g)")+
+  scale_color_brewer(palette = "RdYlGn")
+  scale_fill_brewer(palette = "Set2")
+
+```
+
+#look for site specific patterns in other than tralopyril
+```{r}
+sedi <- subset(df24, Matrix == "Sediment")
+RColorBrewer::display.brewer.all()
+
+sedi2 <- subset(sedi, !Stasjonskode=="D")
+nedi <- subset(sedi2, Stasjonskode %in% c("B", "C", "D"))
+
+forst <- subset(sedi2, Stasjonsnummer == "1")
+
+ggplot(sedi2, aes(as.numeric(Distance.to.cage), as.numeric(CHFPCN)))+
+  geom_point(aes(colour=interaction(factor(Stasjonskode))), size=6)+
+  #scale_y_log10()+
+  #scale_x_log10()+
+  theme_bw()+
+  geom_smooth(method = "lm", se = FALSE, colour="black")+
+  #stat_regline_equation(label.x=1.5, label.y=5.8, size=5) +
+  stat_cor(aes(label=..rr.label..), label.x=1.5, label.y=5.6, size=5)+
+  #stat_cor(method = "pearson", label.x = 0.30, label.y = 2, size=5)+
+  theme(axis.text.y = element_text(size= 18),
+        axis.title.x = element_text(size = 22, margin=margin(20,0,0,0)),
+        axis.title.y = element_text(size = 22, margin=margin(0,20,0,0)),
+        strip.text.x = element_text(size = 32),
+        axis.text.x = element_text(angle=0, hjust=0.5, vjust=0, size = 18),
+        plot.title=element_text(size=30, face="bold"),
+        legend.text=element_text(size=22),
+        legend.title = element_blank())+
+  labs(title = "", x = "Distance (m)")+
+  #scale_color_brewer(palette = "RdYlGn")+
+  facet_grid(Stasjonskode~., scales="free")
+
+ggplot(nedi, aes(as.numeric(Distance.to.cage), as.numeric(Tralopyril), fill=Stasjonsnummer))+
+  geom_boxplot(aes(colour=interaction(factor(Stasjonsnummer))), size=6)+
+  scale_y_log10()+
+  scale_x_log10()+
+  theme_bw()+
+  #geom_smooth(method = "lm", se = FALSE, colour="black")+
+  #stat_regline_equation(label.x=1.5, label.y=5.8, size=5) +
+  #stat_cor(aes(label=..rr.label..), label.x=1.5, label.y=5.6, size=5)+
+  #stat_cor(method = "pearson", label.x = 0.30, label.y = 2, size=5)+
+  theme(axis.text.y = element_text(size= 18),
+        axis.title.x = element_text(size = 22, margin=margin(20,0,0,0)),
+        axis.title.y = element_text(size = 22, margin=margin(0,20,0,0)),
+        strip.text.x = element_text(size = 32),
+        axis.text.x = element_text(angle=0, hjust=0.5, vjust=0, size = 18),
+        plot.title=element_text(size=30, face="bold"),
+        legend.text=element_text(size=22),
+        legend.title = element_blank())+
+  labs(title = "", x = "Distance (m)")
+  #scale_color_brewer(palette = "RdYlGn")
+  facet_grid(Stasjonskode~., scales="free")
+
+
+```
 
 
 
@@ -361,7 +576,7 @@ newtablexx <- subset(df24z_finalxyzz3, value != "n.a.")
 newtablexx$value <- as.numeric(newtablexx$value)
 newtablexxx <- newtablexx %>% drop_na(value)
 
-pnec <- subset(newtablexxx, compound %in% c("Tralopyril", "BCCPCA", "CCPCA", "CHFPCN", "TFA", "Cu", "Zn", "Diflubenzuron", "Teflubenzuron", "Emamectin benzoate"))
+pnec <- subset(newtablexxx, compound %in% c("Tralopyril", "BCCPCA", "CCPCA", "TFA", "Cu", "Zn", "Diflubenzuron", "Teflubenzuron", "Emamectin benzoate"))
 
 pnec3 <- pnec%>%
   mutate(sample_category = case_when
@@ -369,8 +584,13 @@ pnec3 <- pnec%>%
           Sample.type %in% c("Sediment") ~ "Sediment"))
           #Sample.type %in% c("Blubber", "Blue mussel", "Liver", "Muscle") ~ "Biota_marine_fish"))
 
+#remove service station, stasjonskode D
+pnec3x <- subset(pnec3, !Stasjonskode =="D")
+pnec3D <- subset(pnec3, Stasjonskode =="D")
+
+
 #filter out max an min values for each category. Wich categories to choose? 
-pnec_max_minx <- pnec3 %>%
+pnec_max_minx <- pnec3D %>%
   group_by(compound, sample_category) %>% #bruk noe annet enn treatment. Må tilpasses pnec kategorier. lage nye
   mutate(Min = min(value), Max = max(value))
 
@@ -434,11 +654,13 @@ unique(dx4$compound)
 
 ```{r PNEC plot}
 #dx5 <- as.numeric(dx5$limit)
-
 #rfe <- subset(dx5, group=="PBDE")
-
 #dx5$Group <- revalue(dx5$Group, c("UV Stabilizer"="UV"))
 #kug <- subset(dx5, Group == "Other")
+
+#remove service station
+#dx5x <- subset(dx5, !Stasjonskode =="D")
+
 
 ggplot(dx5, aes(y=fct_rev(compound), x=value, xmin = Min, xmax=Max, colour = sample_category))+ 
   geom_linerange(aes(colour = sample_category, alpha=1), linewidth=2.5, position = position_dodge2(width = 0.7))+
